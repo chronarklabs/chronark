@@ -19,10 +19,10 @@ Needs Node 18.17 or newer. No dependencies.
 
 ```sh
 # run it straight from GitHub
-npx github:chronarkhq/chronark --help
+npx github:chronarklabs/chronark --help
 
 # or install the `chronark` command
-npm install -g github:chronarkhq/chronark
+npm install -g github:chronarklabs/chronark
 ```
 
 ## Commands
@@ -68,7 +68,7 @@ The node key is created on first use at `~/.chronark/node.key` with mode 0600 an
 ## SDK
 
 ```js
-import chronark from "chronark"; // npm install github:chronarkhq/chronark
+import chronark from "chronark"; // npm install github:chronarklabs/chronark
 
 const session = await chronark.open({ worker: "python", seconds: 600 });
 const out = await session.exec("python main.py");
