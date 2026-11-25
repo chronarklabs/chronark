@@ -14,6 +14,14 @@ Environment=CHRONARK_DATA=/var/lib/chronark
 Environment=CHRONARK_RUNNER=docker
 Environment=CHRONARK_NETWORK=none
 Environment=CHRONARK_RATE=0.0004
+Environment=CHRONARK_CURRENCY=USDG
+# On-chain deposits: fill these after deploying contracts/ (see README), then systemctl restart chronark
+#Environment=CHRONARK_CHAIN_RPC=https://rpc.mainnet.chain.robinhood.com
+#Environment=CHRONARK_CHAIN_ID=4663
+#Environment=CHRONARK_VAULT=0x...
+#Environment=CHRONARK_VAULT_FROM=<deploy block>
+#Environment=CHRONARK_TOKEN=0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168
+#Environment=CHRONARK_FUND_URL=https://chronarkcloud.com/fund
 ExecStart=/usr/bin/node /opt/chronark/server/main.js
 Restart=on-failure
 RestartSec=3

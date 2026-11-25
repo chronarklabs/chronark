@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chronark · fund your account</title><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#030405;--panel:rgba(22,24,26,.72);--fg:#f4f4f5;--dim:#8a8d91;--line:rgba(255,255,255,.11);--sig:#8fe3d8;--warm:#f0b48c;--bad:#f0a08c;--sans:"Inter Tight",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(90% 60% at 80% -10%,rgba(143,227,216,.06),transparent 60%),var(--bg)}
+a{color:var(--sig)}button,input{font:inherit;color:inherit}
+.wrap{max-width:620px;margin:0 auto;padding:28px 18px 60px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
+.logo{display:flex;align-items:center;gap:10px;font:600 18px var(--sans);letter-spacing:-.02em;color:var(--fg);text-decoration:none}.logo img{width:30px;height:30px}
+h1{font:600 30px/1.15 var(--sans);letter-spacing:-.025em;margin:0 0 8px}.lead{color:var(--dim);margin:0 0 26px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+label{display:block;font-size:12.5px;color:var(--dim);margin:14px 0 6px}label:first-child{margin-top:0}
+input{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:12px 13px;outline:0;font-family:var(--mono);font-size:13.5px}input:focus{border-color:var(--sig)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 22px;border:0;border-radius:999px;background:#fff;color:#0a0a0a;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}.btn:focus-visible{outline:2px solid var(--sig);outline-offset:2px}.btn.ghost{background:none;border:1px solid var(--line);color:var(--fg)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kv div{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:rgba(0,0,0,.2)}.kv b{display:block;font:500 13.5px var(--mono);word-break:break-all}.kv span{font-size:12px;color:var(--dim)}
+.msg{font:12.5px/1.6 var(--mono);margin-top:14px;min-height:18px;word-break:break-word}.msg.ok{color:var(--sig)}.msg.bad{color:var(--bad)}
+.steps{margin:0;padding-left:18px;color:var(--dim);font-size:13.5px}.steps li{margin:4px 0}.steps code{font-family:var(--mono);color:var(--fg)}
+@media (max-width:520px){.kv{grid-template-columns:1fr}}
+</style></head><body>
+<div class="wrap">
+<header><a class="logo" href="/"><img src="/img/logo-64.png" srcset="/img/logo-64.png 1x, /img/logo-128.png 2x" alt="">chronark</a></header>
+<h1>Fund your account</h1>
+<p class="lead">Your Chronark account is the key on your machine. Pay into it from any wallet and the node credits it once the deposit is confirmed.</p>
+
+<section class="card" id="closed" hidden>
+  <p style="margin:0">Deposits open as soon as the vault contract is live. Until then a node operator can credit your account directly.</p>
+</section>
+
+<section class="card" id="open" hidden>
+  <div class="kv" id="info"></div>
+  <form id="f" style="margin-top:6px">
+    <label for="acc">Chronark account</label>
+    <input id="acc" placeholder="0x… (run: chronark account)" spellcheck="false" autocomplete="off" required>
+    <label for="amt">Amount</label>
+    <input id="amt" inputmode="decimal" placeholder="5.00" required>
+    <div class="row"><button class="btn" type="button" id="connect">Connect wallet</button><button class="btn" id="go" disabled>Deposit</button></div>
+    <div class="msg" id="m" role="status" aria-live="polite"></div>
+  </form>
+</section>
+
+<section class="card">
+  <ol class="steps">
+    <li>Get your account id: <code>chronark account</code></li>
+    <li>Deposit here. Your wallet asks twice: approve the amount, then deposit.</li>
+    <li>Check it landed: <code>chronark account --cloud &lt;node&gt;</code></li>
+  </ol>
+  <p style="color:var(--dim);font-size:12.5px;margin:14px 0 0">Deposits pay for compute on this node and are not withdrawable back to your wallet. Unused session budget always returns to your balance.</p>
+</section>
+</div>
+<script>
+const $=(i)=>document.getElementById(i);let C=null,me=null;
+const say=(t,ok)=>{$("m").textContent=t;$("m").className="msg "+(ok===undefined?"":ok?"ok":"bad")};
+const pad=(h)=>h.replace(/^0x/,"").toLowerCase().padStart(64,"0");
+const units=(v)=>{const s=String(v).trim();if(!/^\d+(\.\d{1,6})?$/.test(s))throw new Error("Enter an amount like 5 or 5.25");const[i,f=""]=s.split(".");const n=BigInt(i)*1000000n+BigInt(f.padEnd(6,"0"));if(n<=0n)throw new Error("Enter more than zero");return n};
+const fmt=(n)=>(Number(n)/1e6).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6});
+const eth=(m,p)=>window.ethereum.request({method:m,params:p});
+async function wait(hash){for(let i=0;i<120;i++){const r=await eth("eth_getTransactionReceipt",[hash]);if(r)return r;await new Promise(o=>setTimeout(o,2000))}throw new Error("No receipt yet for "+hash)}
+async function chain(){const want="0x"+C.chainId.toString(16);if(await eth("eth_chainId",[])===want)return;
+  try{await eth("wallet_switchEthereumChain",[{chainId:want}])}catch(e){if(e.code!==4902)throw e;await eth("wallet_addEthereumChain",[{chainId:want,chainName:C.chainName,rpcUrls:[C.rpc],nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18},blockExplorerUrls:[C.explorer]}])}}
+async function bal(){if(!me)return;const r=await eth("eth_call",[{to:C.token,data:"0x70a08231"+pad(me)},"latest"]);return BigInt(r)}
+fetch("/api/cloud").then(r=>r.json()).then(async c=>{C=c;if(!c.vault){$("closed").hidden=false;return}
+  $("open").hidden=false;
+  $("info").innerHTML=[[c.currency,"pays in"],[c.chainName,"network"],[c.vault.slice(0,10)+"…"+c.vault.slice(-6),"vault contract"],[c.confirmations+" blocks","credited after"]].map(([b,s])=>`<div><b>${b}</b><span>${s}</span></div>`).join("");
+  const q=new URLSearchParams(location.search).get("account");if(q)$("acc").value=q;
+  if(!window.ethereum){$("connect").disabled=true;say("No wallet found in this browser. Install one (MetaMask, Rabby, Coinbase Wallet) or use the vault from any wallet: deposit(account, amount).",false)}
+});
+$("connect").onclick=async()=>{try{[me]=await eth("eth_requestAccounts",[]);await chain();const b=await bal();$("connect").textContent=me.slice(0,6)+"…"+me.slice(-4);$("go").disabled=false;say(`Connected. You hold ${fmt(b)} ${C.currency}.`,true)}catch(e){say(e.message||String(e),false)}};
+$("f").onsubmit=async(e)=>{e.preventDefault();const b=$("go");
+  try{const acc=$("acc").value.trim().toLowerCase();if(!/^0x[0-9a-f]{40}$/.test(acc))throw new Error("The account is 0x followed by 40 hex characters. Run chronark account.");
+    const n=units($("amt").value);await chain();const have=await bal();if(have<n)throw new Error(`You hold ${fmt(have)} ${C.currency}, less than ${fmt(n)}.`);
+    b.disabled=true;
+    const allow=BigInt(await eth("eth_call",[{to:C.token,data:"0xdd62ed3e"+pad(me)+pad(C.vault)},"latest"]));
+    if(allow<n){say("1 of 2 · approve "+fmt(n)+" "+C.currency+" in your wallet…");const h=await eth("eth_sendTransaction",[{from:me,to:C.token,data:"0x095ea7b3"+pad(C.vault)+n.toString(16).padStart(64,"0")}]);say("Waiting for the approval…");if((await wait(h)).status!=="0x1")throw new Error("The approval failed.")}
+    say("2 of 2 · deposit in your wallet…");
+    const h=await eth("eth_sendTransaction",[{from:me,to:C.vault,data:"0x6503126e"+acc.slice(2).padEnd(64,"0")+n.toString(16).padStart(64,"0")}]);
+    say("Waiting for the deposit…");const r=await wait(h);if(r.status!=="0x1")throw new Error("The deposit failed: "+h);
+    $("m").innerHTML=`Deposited ${fmt(n)} ${C.currency}. The node credits it after ${C.confirmations} blocks. <a href="${C.explorer}/tx/${h}" target="_blank" rel="noopener">View transaction</a>`;$("m").className="msg ok";$("amt").value="";
+  }catch(x){say(x.message||String(x),false)}finally{b.disabled=!me}};
+</script></body></html>

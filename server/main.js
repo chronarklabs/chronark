@@ -5,13 +5,16 @@
 //   node server/main.js account <account>        show an account
 // Config (env): CHRONARK_HOST 127.0.0.1, CHRONARK_PORT 8787, CHRONARK_DATA ./data, CHRONARK_RATE 0.0004,
 //   CHRONARK_RUNNER docker|process, CHRONARK_NETWORK none, CHRONARK_MEMORY 512m, CHRONARK_CPUS 1,
-//   CHRONARK_MAX_SESSIONS 20, CHRONARK_MAX_PER_ACCOUNT 3, CHRONARK_IDLE 300, CHRONARK_MAX_BUDGET 10
+//   CHRONARK_MAX_SESSIONS 20, CHRONARK_MAX_PER_ACCOUNT 3, CHRONARK_IDLE 300, CHRONARK_MAX_BUDGET 10, CHRONARK_CURRENCY USDC
+// On-chain deposits (all four to enable): CHRONARK_CHAIN_RPC, CHRONARK_CHAIN_ID, CHRONARK_VAULT, CHRONARK_VAULT_FROM (deploy block),
+//   plus CHRONARK_TOKEN (shown to depositors) and CHRONARK_CONFIRMATIONS (default 3)
 import { join, resolve } from "node:path";
 import { nodeKey } from "../src/receipt.js";
 import { toMicro, fromMicro } from "../src/index.js";
 import { openLedger } from "./ledger.js";
 import { dockerRunner, processRunner } from "./runner.js";
 import { createApp } from "./app.js";
+import { watchDeposits } from "./deposits.js";
 
 const env = process.env;
 const data = resolve(env.CHRONARK_DATA || "data");
@@ -42,18 +45,30 @@ if (kind === "process" && !["127.0.0.1", "::1", "localhost"].includes(host)) {
 const runner = kind === "process" ? processRunner()
   : dockerRunner({ network: env.CHRONARK_NETWORK || "none", memory: env.CHRONARK_MEMORY || "512m", cpus: env.CHRONARK_CPUS || "1" });
 const key = nodeKey(data);
+const currency = env.CHRONARK_CURRENCY || "USDC";
+const deposit = env.CHRONARK_VAULT && env.CHRONARK_CHAIN_RPC ? {
+  chainId: Number(env.CHRONARK_CHAIN_ID || 4663), vault: env.CHRONARK_VAULT, token: env.CHRONARK_TOKEN || null, currency,
+  decimals: 6, confirmations: Number(env.CHRONARK_CONFIRMATIONS || 3), method: "deposit(bytes20 account, uint256 amount)",
+  fundUrl: env.CHRONARK_FUND_URL || null } : null;
 const app = createApp({
   ledger, runner, key, rate: env.CHRONARK_RATE || "0.0004",
   maxSessions: Number(env.CHRONARK_MAX_SESSIONS || 20), maxPerAccount: Number(env.CHRONARK_MAX_PER_ACCOUNT || 3),
-  idleSeconds: Number(env.CHRONARK_IDLE || 300), maxBudget: env.CHRONARK_MAX_BUDGET || "10",
+  idleSeconds: Number(env.CHRONARK_IDLE || 300), maxBudget: env.CHRONARK_MAX_BUDGET || "10", currency, deposit,
   log: (s) => console.log(new Date().toISOString(), s),
 });
 const rec = await app.recover();
 if (rec.swept || rec.refunded) console.log(`recovered: removed ${rec.swept} stray sandboxes, refunded ${rec.refunded} interrupted sessions`);
+let watcher = null;
+if (deposit) {
+  watcher = watchDeposits({ ledger, rpc: env.CHRONARK_CHAIN_RPC, vault: deposit.vault, from: Number(env.CHRONARK_VAULT_FROM || 0),
+    confirmations: deposit.confirmations, log: (s) => console.log(new Date().toISOString(), s) }).start();
+  console.log(`watching deposits on chain ${deposit.chainId} vault ${deposit.vault}`);
+}
 app.server.listen(port, host, () => console.log(`chronark node ${key.id} · ${kind} runner · http://${host}:${port}`));
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, async () => {
   console.log("shutting down, closing open sessions");
   app.server.close();
+  watcher?.stop();
   await app.shutdown();
   ledger.close();
   process.exit(0);

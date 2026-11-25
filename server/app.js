@@ -15,7 +15,7 @@ import { makeVerifier } from "../src/auth.js";
 const MAX_BODY = 64 * 1024;
 
 export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 20, maxPerAccount = 3, idleSeconds = 300,
-  maxBudget = "10", minBudget = "0.0004", log = () => {} }) {
+  maxBudget = "10", minBudget = "0.0004", currency = "USDC", deposit = null, log = () => {} }) {
   const rateM = toMicro(rate), maxBudgetM = toMicro(maxBudget), minBudgetM = toMicro(minBudget);
   const check = makeVerifier();
   const live = new Map(); // session id -> { row, box, execs, hash, running, timers, maxSeconds }
@@ -33,8 +33,8 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
       const receipt = signReceipt({
         v: 1, mode: "cloud", session: id, account: s.row.account, worker: s.row.worker, image: s.box?.image ?? null,
         opened: new Date(s.row.opened).toISOString(), closed: new Date(closed).toISOString(), seconds,
-        rate: fromMicro(rateM, 6) + " USDC/s", budget: fromMicro(budget, 6) + " USDC",
-        paid: fromMicro(paid, 6) + " USDC", refund: fromMicro(budget - paid, 6) + " USDC",
+        rate: fromMicro(rateM, 6) + ` ${currency}/s`, budget: fromMicro(budget, 6) + ` ${currency}`,
+        paid: fromMicro(paid, 6) + ` ${currency}`, refund: fromMicro(budget - paid, 6) + ` ${currency}`,
         status, settlement: "ledger", execs: s.execs, output: "sha256:" + s.hash.digest("hex"),
       }, key);
       ledger.closeSession(id, { closed, seconds, paid, status, receipt: JSON.stringify(receipt) });
@@ -54,8 +54,8 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
     for (const row of ledger.openSessions()) {
       const receipt = signReceipt({ v: 1, mode: "cloud", session: row.id, account: row.account, worker: row.worker, image: null,
         opened: new Date(row.opened).toISOString(), closed: new Date().toISOString(), seconds: 0,
-        rate: fromMicro(BigInt(row.rate), 6) + " USDC/s", budget: fromMicro(BigInt(row.budget), 6) + " USDC",
-        paid: "0.000000 USDC", refund: fromMicro(BigInt(row.budget), 6) + " USDC", status: "interrupted", settlement: "ledger",
+        rate: fromMicro(BigInt(row.rate), 6) + ` ${currency}/s`, budget: fromMicro(BigInt(row.budget), 6) + ` ${currency}`,
+        paid: `0.000000 ${currency}`, refund: fromMicro(BigInt(row.budget), 6) + ` ${currency}`, status: "interrupted", settlement: "ledger",
         execs: [], output: null }, key);
       ledger.closeSession(row.id, { closed: Date.now(), seconds: 0, paid: 0n, status: "interrupted", receipt: JSON.stringify(receipt) });
       n++;
@@ -64,13 +64,14 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
   }
 
   const routes = [
-    ["GET", /^\/v1\/node$/, false, async () => ({ node: { id: key.id, pub: key.pub }, rate: fromMicro(rateM, 6), currency: "USDC",
+    ["GET", /^\/v1\/node$/, false, async () => ({ node: { id: key.id, pub: key.pub }, rate: fromMicro(rateM, 6), currency, deposit,
       unit: "second", workers: Object.keys(runner.images), runner: runner.kind, minBudget: fromMicro(minBudgetM, 6), maxBudget: fromMicro(maxBudgetM, 6),
       idleSeconds, settlement: "ledger" })],
 
     ["GET", /^\/v1\/account$/, true, async ({ who }) => {
       const a = ledger.ensure(who.account, who.pub);
-      return { account: a.id, balance: fromMicro(a.balance, 6), held: fromMicro(a.held, 6), sessions: ledger.sessions(a.id, 10)
+      return { account: a.id, currency, balance: fromMicro(a.balance, 6), held: fromMicro(a.held, 6),
+        deposits: ledger.deposits(a.id, 10).map((d) => ({ amount: fromMicro(BigInt(d.amount), 6), tx: d.tx, block: d.block, at: new Date(d.at).toISOString() })), sessions: ledger.sessions(a.id, 10)
         .map((s) => ({ ...s, paid: s.paid == null ? null : fromMicro(BigInt(s.paid), 6) })) };
     }],
 
@@ -79,8 +80,8 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
       let budget;
       try { budget = body.budget != null ? toMicro(body.budget) : body.seconds != null ? BigInt(Math.floor(Number(body.seconds))) * rateM : toMicro("0.24"); }
       catch (e) { throw http(400, e.message); }
-      if (budget < minBudgetM) throw http(400, `budget is below the minimum of ${fromMicro(minBudgetM, 6)} USDC`);
-      if (budget > maxBudgetM) throw http(400, `budget is above the maximum of ${fromMicro(maxBudgetM, 6)} USDC per session`);
+      if (budget < minBudgetM) throw http(400, `budget is below the minimum of ${fromMicro(minBudgetM, 6)} ${currency}`);
+      if (budget > maxBudgetM) throw http(400, `budget is above the maximum of ${fromMicro(maxBudgetM, 6)} ${currency} per session`);
       if (!runner.images[worker]) throw http(400, `unknown worker "${worker}" (have: ${Object.keys(runner.images).join(", ")})`);
       if (live.size >= maxSessions) throw http(503, "this node is full, try again shortly");
       const acct = ledger.ensure(who.account, who.pub);
@@ -96,7 +97,7 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
       s.expiry = setTimeout(() => close(id, "budget_exhausted"), Math.max(0, row.opened + maxSeconds * 1000 - Date.now())); s.expiry.unref?.();
       touch(s);
       log(`open ${id.slice(0, 10)} ${worker} budget ${fromMicro(budget, 6)} acct ${acct.id.slice(0, 10)}`);
-      return { session: id, worker, image: s.box.image, rate: fromMicro(rateM, 6), budget: fromMicro(budget, 6), maxSeconds,
+      return { session: id, currency, worker, image: s.box.image, rate: fromMicro(rateM, 6), budget: fromMicro(budget, 6), maxSeconds,
         opened: new Date(row.opened).toISOString(), node: key.id };
     }],
 

@@ -11,7 +11,7 @@ $ chronark run --budget 2.00 -- python scraper.py
 ✓ settled 0.1648 USDC · refund 1.8352 USDC (simulated)
 ```
 
-> **Two modes.** *Local* (default) runs the command on your own machine: seconds are metered and receipts signed for real, but no money moves (`"settlement": "simulated"`). *Cloud* (`--cloud <url>`) runs it in a locked-down sandbox on a Chronark node and pays from your balance on that node (`"settlement": "ledger"`). Balances are credited by the node operator for now; on-chain deposits come later.
+> **Two modes.** *Local* (default) runs the command on your own machine: seconds are metered and receipts signed for real, but no money moves (`"settlement": "simulated"`). *Cloud* (`--cloud <url>`) runs it in a locked-down sandbox on a Chronark node and pays from your balance on that node (`"settlement": "ledger"`). Balances are funded on chain through the ChronarkVault contract (or credited by the operator).
 
 ## Install
 
@@ -51,6 +51,18 @@ chronark run --worker python --budget 0.05 -- python -c "print(6*7)"
 - Workers: `shell` (alpine 3.20), `python` (3.12), `node` (22). Each sandbox runs as uid 1000 with no network, a read-only root filesystem, a writable `/work` and `/tmp`, 512 MB of memory, 1 CPU and at most 256 processes.
 - The receipt is signed by the node; `chronark verify` checks it, and the CLI refuses a receipt signed by a different node than the one that opened the session.
 - Plain `http://` is only accepted for localhost.
+
+### Funding an account
+
+Deposits go through `ChronarkVault` (`contracts/`): `deposit(bytes20 account, uint256 amount)` pulls a 6-decimal stablecoin (USDG on Robinhood Chain by default) and emits `Deposit(account, from, amount)`. The node watches those events and credits the account once, after `CHRONARK_CONFIRMATIONS` blocks (default 3), keyed by transaction and log index so a rescan never pays twice.
+
+- In a browser: `https://chronarkcloud.com/fund?account=<your account>` connects a wallet and does the approve and the deposit.
+- From any wallet or script: approve the vault for the amount, then call `deposit(account, amount)`.
+
+Deposits pay for compute on that node; they are not withdrawable back to the depositor. Unused session budget always returns to the account balance. The vault owner (the node operator) can withdraw what was paid in.
+
+To deploy a vault: `cd contracts && npm install && npx hardhat test`, then
+`DEPLOYER_KEY=… OWNER=0x… npx hardhat run scripts/deploy.js --network robinhood` and put the printed `CHRONARK_VAULT` / `CHRONARK_VAULT_FROM` into the node's service file.
 
 ### API
 
@@ -143,6 +155,8 @@ chronark.verifyReceipt(receipt); // { ok: true }
 ```sh
 npm test                             # everything except the docker sandbox
 CHRONARK_TEST_DOCKER=1 npm test      # with Docker running
+cd contracts && npm install && npx hardhat test
+# deposits end to end: (cd contracts && npx hardhat node) & CHRONARK_TEST_CHAIN=http://127.0.0.1:8545 npm test
 ```
 
 The landing page is in `web/` and the Blender scene for its hero in `blender/scenes.py`.

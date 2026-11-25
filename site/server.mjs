@@ -10,7 +10,12 @@ import * as T from "./burn.mjs";
 
 const PORT = Number(process.env.PORT || 5820), HOST = process.env.HOST || "127.0.0.1";
 const ROOT = path.resolve(new URL("../web/", import.meta.url).pathname);
-const STUDIO = new URL("./studio.html", import.meta.url).pathname;
+const STUDIO = new URL("./studio.html", import.meta.url).pathname, FUND = new URL("./fund.html", import.meta.url).pathname;
+// what /fund needs to take a deposit; the vault is unset until the contract is deployed
+const CLOUD = { vault: process.env.CHRONARK_VAULT || null, token: process.env.CHRONARK_TOKEN || "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+  currency: process.env.CHRONARK_CURRENCY || "USDG", chainId: Number(process.env.CHRONARK_CHAIN_ID || 4663), chainName: process.env.CHRONARK_CHAIN_NAME || "Robinhood Chain",
+  rpc: process.env.CHRONARK_CHAIN_PUBLIC_RPC || "https://rpc.mainnet.chain.robinhood.com", explorer: process.env.CHRONARK_EXPLORER || "https://explorer.mainnet.chain.robinhood.com",
+  confirmations: Number(process.env.CHRONARK_CONFIRMATIONS || 3), node: process.env.CHRONARK_NODE_URL || null };
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg",
   ".webp": "image/webp", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".mp4": "video/mp4", ".webm": "video/webm", ".txt": "text/plain; charset=utf-8" };
 
@@ -45,8 +50,8 @@ async function studio(req, res, p) {
 }
 
 function file(req, res, p) {
-  let f = p === "/studio" ? STUDIO : path.join(ROOT, decodeURIComponent(p));
-  if (f !== STUDIO && f !== ROOT && !f.startsWith(ROOT + path.sep)) return notFound(res);
+  let f = p === "/studio" ? STUDIO : p === "/fund" ? FUND : path.join(ROOT, decodeURIComponent(p));
+  if (f !== STUDIO && f !== FUND && f !== ROOT && !f.startsWith(ROOT + path.sep)) return notFound(res);
   try { if (fs.statSync(f).isDirectory()) f = path.join(f, "index.html"); } catch { return notFound(res); }
   fs.stat(f, (err, st) => {
     if (err || !st.isFile()) return notFound(res);
@@ -72,6 +77,7 @@ http.createServer(async (req, res) => {
   const p = new URL(req.url, "http://x").pathname;
   try {
     if (p === "/api/token" && req.method === "GET") return send(res, 200, await T.publicView());
+    if (p === "/api/cloud" && req.method === "GET") return send(res, 200, CLOUD);
     if (p.startsWith("/api/studio/")) return await studio(req, res, p);
     if (p.startsWith("/api/")) return send(res, 404, { error: "Not found." });
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "Method not allowed." });

@@ -17,6 +17,9 @@ export function openLedger(file) {
       id TEXT PRIMARY KEY, account TEXT NOT NULL, worker TEXT NOT NULL, rate INTEGER NOT NULL, budget INTEGER NOT NULL,
       opened INTEGER NOT NULL, closed INTEGER, seconds INTEGER, paid INTEGER, status TEXT NOT NULL, receipt TEXT);
     CREATE INDEX IF NOT EXISTS sessions_account ON sessions(account, status);
+    CREATE TABLE IF NOT EXISTS deposits (
+      id TEXT PRIMARY KEY, account TEXT NOT NULL, sender TEXT NOT NULL, amount INTEGER NOT NULL, tx TEXT NOT NULL, block INTEGER NOT NULL, at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
   `);
   const q = {
     get: db.prepare("SELECT * FROM accounts WHERE id = ?"),
@@ -30,16 +33,21 @@ export function openLedger(file) {
     sOpen: db.prepare("SELECT * FROM sessions WHERE status = 'open'"),
     sCount: db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE account = ? AND status = 'open'"),
     sClose: db.prepare("UPDATE sessions SET closed = ?, seconds = ?, paid = ?, status = ?, receipt = ? WHERE id = ? AND status = 'open'"),
+    dGet: db.prepare("SELECT 1 FROM deposits WHERE id = ?"),
+    dIns: db.prepare("INSERT INTO deposits (id, account, sender, amount, tx, block, at) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+    dList: db.prepare("SELECT amount, tx, block, at FROM deposits WHERE account = ? ORDER BY block DESC LIMIT ?"),
+    mGet: db.prepare("SELECT v FROM meta WHERE k = ?"),
+    mSet: db.prepare("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v"),
     sList: db.prepare("SELECT id, worker, opened, closed, seconds, paid, status FROM sessions WHERE account = ? ORDER BY opened DESC LIMIT ?"),
   };
-  const tx = (fn) => { db.exec("BEGIN IMMEDIATE"); try { const r = fn(); db.exec("COMMIT"); return r; } catch (e) { db.exec("ROLLBACK"); throw e; } };
+  const tx_ = (fn) => { db.exec("BEGIN IMMEDIATE"); try { const r = fn(); db.exec("COMMIT"); return r; } catch (e) { db.exec("ROLLBACK"); throw e; } };
   const big = (r) => r && { ...r, balance: BigInt(r.balance), held: BigInt(r.held) };
 
   return {
     account: (id) => big(q.get.get(id)),
     ensure: (id, pub) => { q.ins.run(id, pub, Date.now()); return big(q.get.get(id)); },
     credit(id, amount, note = "") {
-      return tx(() => {
+      return tx_(() => {
         if (!q.get.get(id)) throw new Error("unknown account (it is created on its first request)");
         q.credit.run(amount, id); q.creditLog.run(id, amount, note, Date.now());
         return big(q.get.get(id));
@@ -47,7 +55,7 @@ export function openLedger(file) {
     },
     // Moves `budget` from balance to held and records the session, or throws if the balance is short.
     openSession({ id, account, worker, rate, budget, opened }) {
-      return tx(() => {
+      return tx_(() => {
         if (q.hold.run(budget, budget, account, budget).changes !== 1) throw Object.assign(new Error("balance too low for that budget"), { status: 402 });
         q.sIns.run(id, account, worker, rate, budget, opened);
         return q.sGet.get(id);
@@ -55,7 +63,7 @@ export function openLedger(file) {
     },
     // Releases the hold, keeps `paid`, refunds the rest. Idempotent: a closed session is returned unchanged.
     closeSession(id, { closed, seconds, paid, status, receipt }) {
-      return tx(() => {
+      return tx_(() => {
         const s = q.sGet.get(id);
         if (!s || s.status !== "open") return s;
         const budget = BigInt(s.budget);
@@ -64,6 +72,20 @@ export function openLedger(file) {
         return q.sGet.get(id);
       });
     },
+    // An on-chain deposit, credited once per (tx, log index) even if the watcher sees it again.
+    deposit({ id, account, sender, amount, tx, block }) {
+      return tx_(() => {
+        if (q.dGet.get(id)) return false;
+        q.ins.run(account, "", Date.now());
+        q.credit.run(amount, account);
+        q.dIns.run(id, account, sender, amount, tx, block, Date.now());
+        q.creditLog.run(account, amount, "deposit " + tx, Date.now());
+        return true;
+      });
+    },
+    deposits: (account, limit = 10) => q.dList.all(account, limit),
+    meta: (k) => q.mGet.get(k)?.v ?? null,
+    setMeta: (k, v) => q.mSet.run(k, String(v)),
     session: (id) => q.sGet.get(id),
     openSessions: () => q.sOpen.all(),
     countOpen: (account) => q.sCount.get(account).n,

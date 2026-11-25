@@ -96,14 +96,15 @@ async function runCloud(f, cmd, url) {
   const worker = f.worker || "shell";
   let s;
   try {
-    s = await c.open({ worker, budget: f.budget ?? "0.24", onTick: (t) => { line = `${warm("⧗")} metering  ${String(t.seconds).padStart(4)}s  ${bar(t.seconds, t.max)}  ${t.cost} USDC`; draw(); } });
+    s = await c.open({ worker, budget: f.budget ?? "0.24", onTick: (t) => { line = `${warm("⧗")} metering  ${String(t.seconds).padStart(4)}s  ${bar(t.seconds, t.max)}  ${t.cost}`; draw(); } });
   } catch (e) {
     err(red("✗"), e.message);
     if (e.status === 402) err(dim(`  fund your account first: chronark account --cloud ${c.url}`));
     return e.status === 402 ? 3 : 1;
   }
   err(`${ok("✓")} session opened   ${dim(short(s.id))}  ${dim(c.url)}`);
-  err(`  rate ${s.rate.replace(/0+$/, "")} USDC/s · budget ${s.budget.replace(/0{1,4}$/, "")} USDC · worker ${worker} (${s.image}) · ${dim("node " + short(s.node))}`);
+  const cur = s.currency || "USDC";
+  err(`  rate ${s.rate.replace(/0+$/, "")} ${cur}/s · budget ${s.budget.replace(/0{1,4}$/, "")} ${cur} · worker ${worker} (${s.image}) · ${dim("node " + short(s.node))}`);
   let res = { code: 1 };
   const onSig = () => { s.stop().catch(() => {}); };
   process.once("SIGINT", onSig);
@@ -170,7 +171,10 @@ async function main() {
     const c = cloud(url);
     const [a, n] = await Promise.all([c.balance(), c.node()]);
     if (f.json) { console.log(JSON.stringify({ ...a, node: n }, null, 2)); return 0; }
-    console.log(`account ${a.account}\nnode    ${n.node.id} · ${c.url}\nbalance ${a.balance} USDC${a.held !== "0.000000" ? `  (${a.held} held by open sessions)` : ""}\nrate    ${n.rate} USDC/s · workers ${n.workers.join(", ")}`);
+    const cur = a.currency || "USDC";
+    console.log(`account ${a.account}\nnode    ${n.node.id} · ${c.url}\nbalance ${a.balance} ${cur}${a.held !== "0.000000" ? `  (${a.held} held by open sessions)` : ""}\nrate    ${n.rate} ${cur}/s · workers ${n.workers.join(", ")}`);
+    if (n.deposit) console.log(`fund    send ${cur} to vault ${n.deposit.vault} on chain ${n.deposit.chainId}: ${n.deposit.method} with account ${a.account}` + (n.deposit.fundUrl ? `\n        or open ${n.deposit.fundUrl}?account=${a.account}` : ""));
+    for (const d of a.deposits || []) console.log(dim(`  + ${d.amount} ${cur}  ${d.at.slice(0, 19).replace("T", " ")}  tx ${short(d.tx)}`));
     for (const x of a.sessions) console.log(dim(`  ${new Date(x.opened).toISOString().slice(0, 19).replace("T", " ")}  ${short(x.id)}  ${String(x.seconds ?? "-").padStart(5)}s  ${(x.paid ?? "-").padStart(9)}  ${x.worker}  ${x.status}`));
     return 0;
   }

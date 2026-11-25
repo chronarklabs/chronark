@@ -7,3 +7,6 @@ blender/render/
 site/node_modules/
 site/data/
 /data/
+contracts/node_modules/
+contracts/artifacts/
+contracts/cache/
