@@ -1,0 +1,29 @@
+[Unit]
+Description=Chronark Cloud node
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+User=chronark
+Group=chronark
+SupplementaryGroups=docker
+WorkingDirectory=/opt/chronark
+Environment=CHRONARK_HOST=127.0.0.1
+Environment=CHRONARK_PORT=8787
+Environment=CHRONARK_DATA=/var/lib/chronark
+Environment=CHRONARK_RUNNER=docker
+Environment=CHRONARK_NETWORK=none
+Environment=CHRONARK_RATE=0.0004
+ExecStart=/usr/bin/node /opt/chronark/server/main.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=60
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/chronark
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

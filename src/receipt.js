@@ -41,7 +41,7 @@ export function signReceipt(body, key) {
 export function verifyReceipt(r) {
   if (!r || typeof r !== "object" || !r.sig || !r.node?.pub) return { ok: false, reason: "not a receipt" };
   if (nodeId(r.node.pub) !== r.node.id) return { ok: false, reason: "node id does not match its public key" };
-  const { sig, ...body } = r;
+  const { sig, file, ...body } = r; // `file` is where this machine saved it, not part of what was signed
   try {
     const pub = createPublicKey({ key: Buffer.from(r.node.pub, "base64"), format: "der", type: "spki" });
     const ok = verify(null, Buffer.from(canonical(body)), pub, Buffer.from(sig, "base64"));

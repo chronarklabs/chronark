@@ -13,6 +13,8 @@ import { join } from "node:path";
 import { nodeKey, signReceipt, verifyReceipt, home } from "./receipt.js";
 
 export { verifyReceipt, canonical } from "./receipt.js";
+export { client as cloud, DEFAULT_CLOUD } from "./cloud.js";
+import { client as cloudClient } from "./cloud.js";
 
 export const DEFAULT_RATE = "0.0004"; // USDC per second
 const DEC = 6; // USDC has 6 decimals; all money maths is done in integer micro-units
@@ -37,7 +39,14 @@ export function quote(seconds, rate = DEFAULT_RATE) {
   return fromMicro(BigInt(seconds) * toMicro(rate), 6);
 }
 
-export async function open({ worker = "local", seconds, budget, rate = DEFAULT_RATE, dir = home(), onTick } = {}) {
+// open({ cloud: "https://…" }) (or CHRONARK_CLOUD set) runs in a Chronark Cloud sandbox; otherwise local mode.
+export async function open(opts = {}) {
+  const url = opts.cloud === true ? undefined : opts.cloud;
+  if (opts.cloud || (process.env.CHRONARK_CLOUD && opts.cloud !== false)) return cloudClient(url, { dir: opts.dir }).open(opts);
+  return openLocal(opts);
+}
+
+async function openLocal({ worker = "local", seconds, budget, rate = DEFAULT_RATE, dir = home(), onTick } = {}) {
   const rateM = toMicro(rate);
   if (rateM <= 0n) throw new Error("rate must be above zero");
   // A budget caps the session; `seconds` is the same cap expressed in time.
@@ -127,4 +136,4 @@ export function receipts(dir = home()) {
 
 export function whoami(dir = home()) { const k = nodeKey(dir); return { id: k.id, pub: k.pub, home: dir }; }
 
-export default { open, quote, receipts, verifyReceipt, whoami };
+export default { open, quote, receipts, verifyReceipt, whoami, cloud: cloudClient };

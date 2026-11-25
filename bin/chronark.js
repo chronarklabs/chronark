@@ -2,7 +2,7 @@
 // chronark: wrap any command, meter it by the second, get a signed receipt.
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { open, quote, receipts, verifyReceipt, whoami, DEFAULT_RATE } from "../src/index.js";
+import { open, quote, receipts, verifyReceipt, whoami, cloud, DEFAULT_RATE } from "../src/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const tty = process.stderr.isTTY && !process.env.NO_COLOR;
@@ -15,6 +15,8 @@ const HELP = `${bold("chronark")} ${pkg.version} · per-second compute with sign
 
 ${bold("Usage")}
   chronark run [--budget 2.00] [--rate ${DEFAULT_RATE}] [--worker name] -- <command> [args...]
+  chronark run --cloud <url> [--budget 0.24] [--worker shell|python|node] -- <command> [args...]
+  chronark account [--cloud <url>]
   chronark quote <seconds> [--rate ${DEFAULT_RATE}]
   chronark receipts [--json]
   chronark verify <receipt.json | session id>
@@ -25,9 +27,13 @@ ${bold("Examples")}
   chronark run --budget 0.01 -- sleep 60        ${dim("# stopped at 25 s when the budget runs out")}
   chronark verify ~/.chronark/receipts/0x….json
 
-Money is in USDC, billed per started second. This release runs in local mode:
-your machine is the worker, receipts are signed by a local node key and no
-funds move (settlement: simulated). State lives in ~/.chronark (CHRONARK_HOME).`;
+Money is in USDC, billed per started second.
+Local mode (default): your machine is the worker, receipts are signed by a
+local key and no funds move (settlement: simulated).
+Cloud mode (--cloud <url> or CHRONARK_CLOUD): the command runs in a sandbox
+on a Chronark node, paid from your balance there (settlement: ledger). Your
+account is your local key; \`chronark account\` prints its id for funding.
+State lives in ~/.chronark (CHRONARK_HOME).`;
 
 function flags(argv) {
   const f = {}, rest = [];
@@ -36,7 +42,7 @@ function flags(argv) {
     if (a === "--") { rest.push(...argv.slice(i + 1)); f["--"] = true; break; }
     if (a.startsWith("--")) {
       const [k, v] = a.slice(2).split("=");
-      if (["json", "help", "version"].includes(k)) f[k] = true;
+      if (["json", "help", "version", "local"].includes(k)) f[k] = true;
       else f[k] = v ?? argv[++i];
     } else rest.push(a);
   }
@@ -45,6 +51,8 @@ function flags(argv) {
 
 async function run(f, cmd) {
   if (!cmd.length) { err(red("✗"), "nothing to run. Put the command after --, e.g. chronark run -- python main.py"); return 2; }
+  const url = f.local ? null : (f.cloud ?? process.env.CHRONARK_CLOUD);
+  if (url) return runCloud(f, cmd, url);
   const worker = f.worker || basename(cmd[0]);
   const bar = (n, max) => { const w = 12, k = Math.min(w, Math.round((n / max) * w)); return ok("█".repeat(k)) + dim("░".repeat(w - k)); };
   let line = "", last = { seconds: 0, cost: "0.0000" };
@@ -75,6 +83,39 @@ async function run(f, cmd) {
   if (r.status === "budget_exhausted") err(`${red("■")} budget exhausted, command stopped after ${r.seconds}s`);
   err(`${ok("✓")} receipt signed   ${dim(r.file.replace(process.env.HOME || "~", "~"))}`);
   err(`${ok("✓")} settled ${warm(r.paid.replace(/(\.\d{4})\d+/, "$1"))} · refund ${r.refund.replace(/(\.\d{4})\d+/, "$1")} ${dim("(simulated)")}`);
+  if (r.status === "budget_exhausted") return 124;
+  return res.code ?? (res.signal ? 128 : 1);
+}
+
+async function runCloud(f, cmd, url) {
+  const c = cloud(url);
+  const bar = (n, max) => { const w = 12, k = Math.min(w, Math.round((n / max) * w)); return ok("█".repeat(k)) + dim("░".repeat(w - k)); };
+  let line = "";
+  const draw = () => { if (tty) process.stderr.write("\r\x1b[2K" + line); };
+  const clear = () => { if (tty && line) process.stderr.write("\r\x1b[2K"); };
+  const worker = f.worker || "shell";
+  let s;
+  try {
+    s = await c.open({ worker, budget: f.budget ?? "0.24", onTick: (t) => { line = `${warm("⧗")} metering  ${String(t.seconds).padStart(4)}s  ${bar(t.seconds, t.max)}  ${t.cost} USDC`; draw(); } });
+  } catch (e) {
+    err(red("✗"), e.message);
+    if (e.status === 402) err(dim(`  fund your account first: chronark account --cloud ${c.url}`));
+    return e.status === 402 ? 3 : 1;
+  }
+  err(`${ok("✓")} session opened   ${dim(short(s.id))}  ${dim(c.url)}`);
+  err(`  rate ${s.rate.replace(/0+$/, "")} USDC/s · budget ${s.budget.replace(/0{1,4}$/, "")} USDC · worker ${worker} (${s.image}) · ${dim("node " + short(s.node))}`);
+  let res = { code: 1 };
+  const onSig = () => { s.stop().catch(() => {}); };
+  process.once("SIGINT", onSig);
+  try { res = await s.exec(cmd, { onData: (k, b) => { clear(); (k === "stdout" ? process.stdout : process.stderr).write(b); draw(); } }); }
+  catch (e) { clear(); err(red("✗"), e.message); }
+  process.off("SIGINT", onSig);
+  const r = await s.stop();
+  clear();
+  err(`${warm("⧗")} metered  ${String(r.seconds).padStart(4)}s  ${bar(r.seconds, s.maxSeconds)}  ${r.paid.replace(/(\.\d{4})\d+/, "$1")}`);
+  if (r.status === "budget_exhausted") err(`${red("■")} budget exhausted, the sandbox was stopped after ${r.seconds}s`);
+  err(`${ok("✓")} receipt signed   ${dim(r.file.replace(process.env.HOME || "~", "~"))}`);
+  err(`${ok("✓")} settled ${warm(r.paid.replace(/(\.\d{4})\d+/, "$1"))} · refund ${r.refund.replace(/(\.\d{4})\d+/, "$1")} ${dim("(ledger)")}`);
   if (r.status === "budget_exhausted") return 124;
   return res.code ?? (res.signal ? 128 : 1);
 }
@@ -120,6 +161,18 @@ async function main() {
     if (v.ok) console.log(`${ok("✓")} valid · session ${short(r.session)} · ${r.seconds}s · paid ${r.paid} · signed by node ${short(r.node.id)}`);
     else console.log(`${red("✗")} invalid · ${v.reason}`);
     return v.ok ? 0 : 1;
+  }
+
+  if (cmd === "account") {
+    const url = f.cloud ?? process.env.CHRONARK_CLOUD;
+    const w = whoami();
+    if (!url) { console.log(`account ${w.id}\n${dim("add --cloud <url> to see your balance on a node")}`); return 0; }
+    const c = cloud(url);
+    const [a, n] = await Promise.all([c.balance(), c.node()]);
+    if (f.json) { console.log(JSON.stringify({ ...a, node: n }, null, 2)); return 0; }
+    console.log(`account ${a.account}\nnode    ${n.node.id} · ${c.url}\nbalance ${a.balance} USDC${a.held !== "0.000000" ? `  (${a.held} held by open sessions)` : ""}\nrate    ${n.rate} USDC/s · workers ${n.workers.join(", ")}`);
+    for (const x of a.sessions) console.log(dim(`  ${new Date(x.opened).toISOString().slice(0, 19).replace("T", " ")}  ${short(x.id)}  ${String(x.seconds ?? "-").padStart(5)}s  ${(x.paid ?? "-").padStart(9)}  ${x.worker}  ${x.status}`));
+    return 0;
   }
 
   if (cmd === "whoami") {

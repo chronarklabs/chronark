@@ -63,7 +63,7 @@ test("cli run, receipts and verify", () => {
   assert.ok(r.session.startsWith(id));
   assert.equal(cli(["verify", r.file], home).status, 0);
   const bad = join(home, "bad.json");
-  writeFileSync(bad, JSON.stringify({ ...r, seconds: 1 }));
+  writeFileSync(bad, JSON.stringify({ ...r, paid: "0.000000 USDC" }));
   const v = cli(["verify", bad], home);
   assert.equal(v.status, 1);
   assert.match(v.stdout, /invalid/);

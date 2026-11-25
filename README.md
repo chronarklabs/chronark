@@ -11,7 +11,7 @@ $ chronark run --budget 2.00 -- python scraper.py
 ✓ settled 0.1648 USDC · refund 1.8352 USDC (simulated)
 ```
 
-> **Status: local mode.** This release meters and signs for real, but the worker is your own machine and no money moves. Receipts say `"settlement": "simulated"`. Remote workers and on-chain settlement come later; nothing here asks for a wallet, a key or a deposit.
+> **Two modes.** *Local* (default) runs the command on your own machine: seconds are metered and receipts signed for real, but no money moves (`"settlement": "simulated"`). *Cloud* (`--cloud <url>`) runs it in a locked-down sandbox on a Chronark node and pays from your balance on that node (`"settlement": "ledger"`). Balances are credited by the node operator for now; on-chain deposits come later.
 
 ## Install
 
@@ -27,15 +27,72 @@ npm install -g chronark
 
 Straight from GitHub works too: `npx github:chronarklabs/chronark --help`.
 
+## Cloud
+
+Your account is your local ed25519 key (`~/.chronark/node.key`). There is no sign-up and no API key: every request is signed with that key.
+
+```sh
+export CHRONARK_CLOUD=https://<your node>
+chronark account                 # prints your account id and balance
+chronark run --worker python --budget 0.05 -- python -c "print(6*7)"
+```
+
+```
+✓ session opened   0xe964…5e47  https://<your node>
+  rate 0.0004 USDC/s · budget 0.05 USDC · worker python (python:3.12-slim) · node 0x7efd…af48
+42
+⧗ metered     1s  ░░░░░░░░░░░░  0.0004 USDC
+✓ receipt signed   ~/.chronark/receipts/0xe964….json
+✓ settled 0.0004 USDC · refund 0.0496 USDC (ledger)
+```
+
+- Opening a session holds the budget from your balance. Stopping it pays the seconds the sandbox was up (per started second) and returns the rest.
+- When the budget runs out the sandbox is destroyed. An idle sandbox is closed after 5 minutes.
+- Workers: `shell` (alpine 3.20), `python` (3.12), `node` (22). Each sandbox runs as uid 1000 with no network, a read-only root filesystem, a writable `/work` and `/tmp`, 512 MB of memory, 1 CPU and at most 256 processes.
+- The receipt is signed by the node; `chronark verify` checks it, and the CLI refuses a receipt signed by a different node than the one that opened the session.
+- Plain `http://` is only accepted for localhost.
+
+### API
+
+| | |
+| --- | --- |
+| `GET /v1/node` | node id, rate, workers (public) |
+| `GET /v1/account` | balance, held funds, recent sessions |
+| `POST /v1/sessions` `{worker, budget}` | open a sandbox, hold the budget |
+| `POST /v1/sessions/:id/exec` `{cmd}` | run a command, output streamed as NDJSON |
+| `POST /v1/sessions/:id/stop` | close, settle, return the signed receipt |
+| `GET /v1/sessions/:id` | status, and the receipt once closed |
+| `GET /v1/receipts/:id` | a closed session's receipt (public) |
+
+Signed requests carry `x-chronark-key` (spki, base64), `x-chronark-ts` (ms), `x-chronark-nonce` and `x-chronark-sig`: an ed25519 signature over `METHOD\nPATH\nTS\nNONCE\nsha256(body)`. Requests older than 60 seconds or with a reused nonce are refused.
+
+## Run a node
+
+A node needs a Linux server of its own: strangers' code runs on it, inside containers. Do not use a machine that hosts anything else.
+
+```sh
+# on a fresh Ubuntu 22.04/24.04 server, with DNS for the hostname pointing at it
+git clone https://github.com/chronarklabs/chronark.git && cd chronark
+sudo DOMAIN=api.example.com bash deploy/install.sh
+
+# credit an account (the id comes from `chronark account`)
+sudo -u chronark CHRONARK_DATA=/var/lib/chronark node /opt/chronark/server/main.js credit 0x… 5.00
+```
+
+The script installs Docker, Node 22 and Caddy (HTTPS), creates a `chronark` system user, pulls the worker images, and starts `chronark.service`. Settings are environment variables in `deploy/chronark.service`: `CHRONARK_RATE`, `CHRONARK_NETWORK` (`none` by default), `CHRONARK_MEMORY`, `CHRONARK_CPUS`, `CHRONARK_MAX_SESSIONS`, `CHRONARK_MAX_PER_ACCOUNT`, `CHRONARK_IDLE`, `CHRONARK_MAX_BUDGET`. The ledger is SQLite at `/var/lib/chronark/ledger.db`; the node key sits next to it. If the node restarts with sessions open, it removes their sandboxes and refunds them in full.
+
+To try it locally: `CHRONARK_RUNNER=docker node server/main.js` with Docker running (needs Node 22.13+ for `node:sqlite`).
+
 ## Commands
 
 | command | what it does |
 | --- | --- |
-| `chronark run [--budget 2.00] [--rate 0.0004] [--worker name] -- <cmd> [args]` | Runs the command, meters it by the second, stops it if the budget runs out, signs a receipt. Exits with the command's exit code (124 if the budget ran out). |
+| `chronark run [--budget 2.00] [--worker name] [--cloud url] -- <cmd> [args]` | Runs the command, meters it by the second, stops it if the budget runs out, signs a receipt. Exits with the command's exit code (124 if the budget ran out). |
 | `chronark quote <seconds> [--rate]` | What that many seconds cost. |
 | `chronark receipts [--json]` | Every receipt on this machine, newest first. |
 | `chronark verify <file \| session id>` | Checks a receipt's signature. Any edit to any field breaks it. |
-| `chronark whoami` | This node's id and public key. |
+| `chronark account [--cloud url]` | Your account id, and with a node, its balance and recent sessions. |
+| `chronark whoami` | Your key's id and public key. |
 
 Billing is per started second, in USDC with 6 decimals, computed in integers so it never rounds wrong. The default rate is 0.0004 USDC/s and the default budget 2.00 USDC.
 
@@ -84,7 +141,8 @@ chronark.verifyReceipt(receipt); // { ok: true }
 ## Develop
 
 ```sh
-npm test
+npm test                             # everything except the docker sandbox
+CHRONARK_TEST_DOCKER=1 npm test      # with Docker running
 ```
 
 The landing page is in `web/` and the Blender scene for its hero in `blender/scenes.py`.
