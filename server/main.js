@@ -9,6 +9,7 @@
 // On-chain deposits (all four to enable): CHRONARK_CHAIN_RPC, CHRONARK_CHAIN_ID, CHRONARK_VAULT, CHRONARK_VAULT_FROM (deploy block),
 //   plus CHRONARK_TOKEN (shown to depositors) and CHRONARK_CONFIRMATIONS (default 3)
 import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { nodeKey } from "../src/receipt.js";
 import { toMicro, fromMicro } from "../src/index.js";
 import { openLedger } from "./ledger.js";
@@ -20,6 +21,17 @@ const env = process.env;
 const data = resolve(env.CHRONARK_DATA || "data");
 const ledger = openLedger(join(data, "ledger.db"));
 const [cmd, ...args] = process.argv.slice(2);
+// Private mode (CHRONARK_PRIVATE=1): only accounts listed in data/allow.txt may open sessions; edit it with allow/deny.
+const ALLOW = join(data, "allow.txt");
+const readAllow = () => new Set((existsSync(ALLOW) ? readFileSync(ALLOW, "utf8") : "").split(/\s+/).filter((x) => /^0x[0-9a-f]{40}$/.test(x)));
+if (cmd === "allow" || cmd === "deny") {
+  const acct = (args[0] ?? "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(acct)) { console.error(`usage: ${cmd} <account 0x…40 hex>`); process.exit(2); }
+  const set = readAllow(); cmd === "allow" ? set.add(acct) : set.delete(acct);
+  writeFileSync(ALLOW, [...set].join("\n") + "\n", { mode: 0o600 });
+  console.log(`${cmd === "allow" ? "allowed" : "removed"} ${acct} · ${set.size} account(s) on the list`);
+  process.exit(0);
+}
 
 if (cmd === "credit") {
   const [account, amount, ...note] = args;
@@ -54,6 +66,7 @@ const app = createApp({
   ledger, runner, key, rate: env.CHRONARK_RATE || "0.0004",
   maxSessions: Number(env.CHRONARK_MAX_SESSIONS || 20), maxPerAccount: Number(env.CHRONARK_MAX_PER_ACCOUNT || 3),
   idleSeconds: Number(env.CHRONARK_IDLE || 300), maxBudget: env.CHRONARK_MAX_BUDGET || "10", currency, deposit,
+  allowed: env.CHRONARK_PRIVATE === "1" ? (a) => readAllow().has(a) : null,
   log: (s) => console.log(new Date().toISOString(), s),
 });
 const rec = await app.recover();
@@ -64,7 +77,7 @@ if (deposit) {
     confirmations: deposit.confirmations, log: (s) => console.log(new Date().toISOString(), s) }).start();
   console.log(`watching deposits on chain ${deposit.chainId} vault ${deposit.vault}`);
 }
-app.server.listen(port, host, () => console.log(`chronark node ${key.id} · ${kind} runner · http://${host}:${port}`));
+app.server.listen(port, host, () => console.log(`chronark node ${key.id} · ${kind} runner · ${env.CHRONARK_PRIVATE === "1" ? "private" : "public"} · http://${host}:${port}`));
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, async () => {
   console.log("shutting down, closing open sessions");
   app.server.close();

@@ -15,7 +15,8 @@ import { makeVerifier } from "../src/auth.js";
 const MAX_BODY = 64 * 1024;
 
 export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 20, maxPerAccount = 3, idleSeconds = 300,
-  maxBudget = "10", minBudget = "0.0004", currency = "USDC", deposit = null, log = () => {} }) {
+  maxBudget = "10", minBudget = "0.0004", currency = "USDC", deposit = null, allowed = null, log = () => {} }) {
+  // allowed: null = public node; otherwise a function(account) -> bool, and only those accounts may open sessions
   const rateM = toMicro(rate), maxBudgetM = toMicro(maxBudget), minBudgetM = toMicro(minBudget);
   const check = makeVerifier();
   const live = new Map(); // session id -> { row, box, execs, hash, running, timers, maxSeconds }
@@ -66,7 +67,7 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
   const routes = [
     ["GET", /^\/v1\/node$/, false, async () => ({ node: { id: key.id, pub: key.pub }, rate: fromMicro(rateM, 6), currency, deposit,
       unit: "second", workers: Object.keys(runner.images), runner: runner.kind, minBudget: fromMicro(minBudgetM, 6), maxBudget: fromMicro(maxBudgetM, 6),
-      idleSeconds, settlement: "ledger" })],
+      idleSeconds, settlement: "ledger", access: allowed ? "private" : "public" })],
 
     ["GET", /^\/v1\/account$/, true, async ({ who }) => {
       const a = ledger.ensure(who.account, who.pub);
@@ -76,6 +77,7 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
     }],
 
     ["POST", /^\/v1\/sessions$/, true, async ({ who, body }) => {
+      if (allowed && !allowed(who.account)) throw http(403, `this node is private: ask its operator to allow account ${who.account}`);
       const worker = String(body.worker ?? "shell");
       let budget;
       try { budget = body.budget != null ? toMicro(body.budget) : body.seconds != null ? BigInt(Math.floor(Number(body.seconds))) * rateM : toMicro("0.24"); }

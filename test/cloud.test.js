@@ -102,6 +102,22 @@ test("the budget stops a long command and the sandbox", async () => {
   assert.equal(r.refund, "0.000000 USDC");
 });
 
+test("a private node only opens sessions for allowed accounts", async () => {
+  let okAccount = null;
+  const p = await start(processRunner(), { allowed: (a) => a === okAccount });
+  try {
+    const yes = cloud(p.url, { dir: fresh() }), no = cloud(p.url, { dir: fresh() });
+    okAccount = yes.account;
+    for (const c of [yes, no]) { await c.balance(); p.ledger.credit(c.account, toMicro("1")); }
+    const n = await (await fetch(p.url + "/v1/node")).json();
+    assert.equal(n.access, "private");
+    await assert.rejects(no.open({ budget: "0.1" }), (e) => e.status === 403 && /private/.test(e.message));
+    const s = await yes.open({ budget: "0.1" });
+    assert.equal((await s.exec("echo ok")).stdout, "ok\n");
+    await s.stop();
+  } finally { await p.app.shutdown(); p.app.server.close(); }
+});
+
 test("crash recovery refunds open sessions", async () => {
   const l = openLedger(":memory:");
   const k = nodeKey(fresh());
