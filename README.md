@@ -18,12 +18,14 @@ $ chronark run --budget 2.00 -- python scraper.py
 Needs Node 18.17 or newer. No dependencies.
 
 ```sh
-# run it straight from GitHub
-npx github:chronarklabs/chronark --help
+# run it once
+npx chronark --help
 
 # or install the `chronark` command
-npm install -g github:chronarklabs/chronark
+npm install -g chronark
 ```
+
+Straight from GitHub works too: `npx github:chronarklabs/chronark --help`.
 
 ## Commands
 
@@ -68,7 +70,7 @@ The node key is created on first use at `~/.chronark/node.key` with mode 0600 an
 ## SDK
 
 ```js
-import chronark from "chronark"; // npm install github:chronarklabs/chronark
+import chronark from "chronark"; // npm install chronark
 
 const session = await chronark.open({ worker: "python", seconds: 600 });
 const out = await session.exec("python main.py");
