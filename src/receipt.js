@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync } from "n
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const home = () => process.env.TESSERA_HOME || join(homedir(), ".tessera");
+export const home = () => process.env.CHRONARK_HOME || join(homedir(), ".chronark");
 
 // Canonical form: keys sorted at every level, no whitespace. The signature covers everything except `sig`.
 export function canonical(v) {
@@ -14,7 +14,7 @@ export function canonical(v) {
   return JSON.stringify(v);
 }
 
-// The node key lives in TESSERA_HOME/node.key (0600). It is created on first use and never printed.
+// The node key lives in CHRONARK_HOME/node.key (0600). It is created on first use and never printed.
 export function nodeKey(dir = home()) {
   const file = join(dir, "node.key");
   if (!existsSync(file)) {

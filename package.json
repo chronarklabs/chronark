@@ -1,16 +1,16 @@
 {
-  "name": "tessera-cli",
+  "name": "chronark",
   "version": "0.1.0",
   "description": "Per-second compute metering and signed receipts for agents. Wrap any command, pay for the seconds it ran, get a signed receipt.",
   "type": "module",
-  "bin": { "tessera": "bin/tessera.js" },
+  "bin": { "chronark": "bin/chronark.js" },
   "exports": { ".": "./src/index.js" },
   "files": ["bin", "src", "README.md", "LICENSE"],
   "engines": { "node": ">=18.17" },
   "scripts": { "test": "node --test test/*.test.js" },
   "keywords": ["agents", "compute", "metering", "receipts", "ed25519", "cli"],
-  "repository": { "type": "git", "url": "git+https://github.com/Dhkrmynti/tessera.git" },
-  "homepage": "https://github.com/Dhkrmynti/tessera#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/chronarkhq/chronark.git" },
+  "homepage": "https://github.com/chronarkhq/chronark#readme",
   "author": "Nyro <dev@nyro.run>",
   "license": "MIT"
 }

@@ -6,9 +6,9 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { open, quote, verifyReceipt, toMicro, fromMicro, billedSeconds } from "../src/index.js";
 
-const fresh = () => mkdtempSync(join(tmpdir(), "tessera-"));
-const bin = new URL("../bin/tessera.js", import.meta.url).pathname;
-const cli = (args, home) => spawnSync(process.execPath, [bin, ...args], { env: { ...process.env, TESSERA_HOME: home, NO_COLOR: "1" }, encoding: "utf8" });
+const fresh = () => mkdtempSync(join(tmpdir(), "chronark-"));
+const bin = new URL("../bin/chronark.js", import.meta.url).pathname;
+const cli = (args, home) => spawnSync(process.execPath, [bin, ...args], { env: { ...process.env, CHRONARK_HOME: home, NO_COLOR: "1" }, encoding: "utf8" });
 
 test("money maths stays exact", () => {
   assert.equal(quote(412), "0.164800");

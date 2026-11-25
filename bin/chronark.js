@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tessera: wrap any command, meter it by the second, get a signed receipt.
+// chronark: wrap any command, meter it by the second, get a signed receipt.
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { open, quote, receipts, verifyReceipt, whoami, DEFAULT_RATE } from "../src/index.js";
@@ -11,23 +11,23 @@ const dim = c("90"), ok = c("36"), warm = c("33"), bold = c("1"), red = c("31");
 const short = (h) => h.slice(0, 6) + "…" + h.slice(-4);
 const err = (...a) => process.stderr.write(a.join(" ") + "\n");
 
-const HELP = `${bold("tessera")} ${pkg.version} · per-second compute with signed receipts
+const HELP = `${bold("chronark")} ${pkg.version} · per-second compute with signed receipts
 
 ${bold("Usage")}
-  tessera run [--budget 2.00] [--rate ${DEFAULT_RATE}] [--worker name] -- <command> [args...]
-  tessera quote <seconds> [--rate ${DEFAULT_RATE}]
-  tessera receipts [--json]
-  tessera verify <receipt.json | session id>
-  tessera whoami
+  chronark run [--budget 2.00] [--rate ${DEFAULT_RATE}] [--worker name] -- <command> [args...]
+  chronark quote <seconds> [--rate ${DEFAULT_RATE}]
+  chronark receipts [--json]
+  chronark verify <receipt.json | session id>
+  chronark whoami
 
 ${bold("Examples")}
-  tessera run --budget 2.00 -- python scraper.py
-  tessera run --budget 0.01 -- sleep 60        ${dim("# stopped at 25 s when the budget runs out")}
-  tessera verify ~/.tessera/receipts/0x….json
+  chronark run --budget 2.00 -- python scraper.py
+  chronark run --budget 0.01 -- sleep 60        ${dim("# stopped at 25 s when the budget runs out")}
+  chronark verify ~/.chronark/receipts/0x….json
 
 Money is in USDC, billed per started second. This release runs in local mode:
 your machine is the worker, receipts are signed by a local node key and no
-funds move (settlement: simulated). State lives in ~/.tessera (TESSERA_HOME).`;
+funds move (settlement: simulated). State lives in ~/.chronark (CHRONARK_HOME).`;
 
 function flags(argv) {
   const f = {}, rest = [];
@@ -44,7 +44,7 @@ function flags(argv) {
 }
 
 async function run(f, cmd) {
-  if (!cmd.length) { err(red("✗"), "nothing to run. Put the command after --, e.g. tessera run -- python main.py"); return 2; }
+  if (!cmd.length) { err(red("✗"), "nothing to run. Put the command after --, e.g. chronark run -- python main.py"); return 2; }
   const worker = f.worker || basename(cmd[0]);
   const bar = (n, max) => { const w = 12, k = Math.min(w, Math.round((n / max) * w)); return ok("█".repeat(k)) + dim("░".repeat(w - k)); };
   let line = "", last = { seconds: 0, cost: "0.0000" };
@@ -98,7 +98,7 @@ async function main() {
 
   if (cmd === "quote") {
     const n = Number(rest[0]);
-    if (!Number.isInteger(n) || n < 1) { err(red("✗"), "give a whole number of seconds, e.g. tessera quote 600"); return 2; }
+    if (!Number.isInteger(n) || n < 1) { err(red("✗"), "give a whole number of seconds, e.g. chronark quote 600"); return 2; }
     console.log(`${n}s at ${f.rate ?? DEFAULT_RATE} USDC/s = ${quote(n, f.rate ?? DEFAULT_RATE)} USDC`);
     return 0;
   }
@@ -106,7 +106,7 @@ async function main() {
   if (cmd === "receipts") {
     const list = receipts();
     if (f.json) { console.log(JSON.stringify(list, null, 2)); return 0; }
-    if (!list.length) { console.log("No receipts yet. Run something: tessera run -- echo hello"); return 0; }
+    if (!list.length) { console.log("No receipts yet. Run something: chronark run -- echo hello"); return 0; }
     for (const r of list)
       console.log(`${dim(r.closed.slice(0, 19).replace("T", " "))}  ${short(r.session)}  ${String(r.seconds).padStart(5)}s  ${r.paid.padStart(14)}  ${r.worker}${r.status === "completed" ? "" : "  " + red(r.status)}`);
     return 0;
@@ -128,7 +128,7 @@ async function main() {
     return 0;
   }
 
-  err(red("✗"), `unknown command "${cmd}". Run tessera --help`);
+  err(red("✗"), `unknown command "${cmd}". Run chronark --help`);
   return 2;
 }
 

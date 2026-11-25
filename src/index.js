@@ -1,6 +1,6 @@
-// Tessera SDK: open a metered session, exec commands in it, stop it to get a signed receipt.
+// Chronark SDK: open a metered session, exec commands in it, stop it to get a signed receipt.
 //
-//   const session = await tessera.open({ worker: "python", seconds: 600 });
+//   const session = await chronark.open({ worker: "python", seconds: 600 });
 //   const out = await session.exec("python main.py");
 //   const receipt = await session.stop();
 //
@@ -91,7 +91,7 @@ export async function open({ worker = "local", seconds, budget, rate = DEFAULT_R
       return running;
     },
 
-    // Closes the session, signs the receipt and writes it to TESSERA_HOME/receipts/<id>.json.
+    // Closes the session, signs the receipt and writes it to CHRONARK_HOME/receipts/<id>.json.
     async stop() {
       if (stopped) return stopped;
       if (running) await running.catch(() => {});

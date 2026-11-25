@@ -1,4 +1,4 @@
-# Tessera visuals: monochrome line-valley hero, orb, voxel cube, silver fins. Cycles.
+# Chronark visuals: monochrome line-valley hero, orb, voxel cube, silver fins. Cycles.
 import bpy, bmesh, math, sys, random, os, bisect
 from mathutils import Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
