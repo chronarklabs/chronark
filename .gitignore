@@ -4,3 +4,6 @@ node_modules/
 .env.*
 blender/render/
 *.blend1
+site/node_modules/
+site/data/
+/data/

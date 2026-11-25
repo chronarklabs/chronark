@@ -165,9 +165,16 @@ footer a:hover{color:#fff}
   .hero .btn{top:262px;height:42px;padding:0 18px;font-size:14px}.hero .btn svg{width:8px;height:8px}
   .trust{top:330px;font-size:12px}.marq{top:350px;width:100%;height:36px}.marq li{font-size:15px;gap:6px}.marq img{width:17px;height:17px}.marq ul{gap:26px}
   .cli{display:none}
+  .ca{top:314px;height:36px;padding:0 4px 0 12px;gap:8px;font-size:11.5px;max-width:100%}.ca code{overflow:hidden;text-overflow:ellipsis}.ca button,.ca a{height:28px;padding:0 10px;font-size:11.5px}
+  body.has-ca .trust{top:372px}body.has-ca .marq{top:392px}
   .nav .wrap{width:calc(100% - 40px)}.nav .r .star,.nav .r>a:first-child{display:none}
   section.s{padding-top:110px}
 }
+.ca{position:absolute;left:0;top:49.6%;display:flex;align-items:center;gap:.6vw;height:2.5vw;min-height:34px;padding:0 .35vw 0 .9vw;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(16,18,19,.78);font:400 .8vw/1 "JetBrains Mono",ui-monospace,monospace;color:#cfd3d6;white-space:nowrap}
+.ca[hidden]{display:none}.ca b{font-weight:400;color:#7d8186}.ca code{font:inherit}
+.ca button,.ca a{display:inline-flex;align-items:center;height:1.85vw;min-height:26px;padding:0 .8vw;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:#1c1f21;color:#e8eaeb;font:500 .74vw "Inter Tight",Inter,sans-serif;cursor:pointer;text-decoration:none}
+.ca a{background:#fff;color:#0a0a0a;border-color:#fff}.ca button:focus-visible,.ca a:focus-visible{outline:2px solid #8fe3d8;outline-offset:2px}
+.burned{margin-top:22px;font:400 13px/1.6 "JetBrains Mono",ui-monospace,monospace;color:#8a8d91}.burned[hidden]{display:none}.burned b{color:#f0b48c;font-weight:400}.burned a{color:#8fe3d8}
 .inst{display:inline-flex;align-items:center;gap:10px;margin-top:26px;max-width:100%;padding:8px 8px 8px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(16,18,19,.85);font:400 13px/1 "JetBrains Mono",ui-monospace,monospace;color:#d8dadd}
 .inst span{color:#7d8186}.inst code{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:inherit}
 .inst button{flex:none;margin-left:6px;padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1c1f21;color:#e8eaeb;font:500 12px "Inter Tight",Inter,sans-serif;cursor:pointer}
@@ -195,6 +202,7 @@ footer a:hover{color:#fff}
   <div class="hx">
     <h1>Per-second compute<br>&amp; settlement for<br>agents, one <span>engine</span></h1>
     <a class="btn" href="#start">Get started<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m3 1.5 2.5 2.5L3 6.5"/></svg></a>
+    <div class="ca" id="ca" hidden><b>CA</b><code id="caAddr"></code><button type="button" id="caCopy" aria-label="Copy contract address">Copy</button><a id="caBuy" href="#" target="_blank" rel="noopener">Buy on Pons</a></div>
     <p class="trust">Runs on the stack your agents already use</p>
     <div class="marq" aria-hidden="true"><ul><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ethereum.svg" alt="">Ethereum</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/docker.svg" alt="">docker</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/python.svg" alt="">Python</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/nodedotjs.svg" alt="">Node.js</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ubuntu.svg" alt="">Ubuntu</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/github.svg" alt="">GitHub</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/bun.svg" alt="">Bun</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ollama.svg" alt="">Ollama</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/linux.svg" alt="">Linux</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ethereum.svg" alt="">Ethereum</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/docker.svg" alt="">docker</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/python.svg" alt="">Python</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/nodedotjs.svg" alt="">Node.js</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ubuntu.svg" alt="">Ubuntu</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/github.svg" alt="">GitHub</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/bun.svg" alt="">Bun</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/ollama.svg" alt="">Ollama</li><li><img src="https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/linux.svg" alt="">Linux</li></ul></div>
     <div class="cli" aria-label="Example Chronark session in a terminal">
@@ -304,6 +312,7 @@ footer a:hover{color:#fff}
   <h2 style="margin-top:18px">Rent your first sandbox</h2>
   <p class="lead">Deposit once, run for ten seconds or ten hours, and get back what you did not use.</p>
   <div class="inst"><span>$</span> <code id="inst">npx chronark run -- echo hello</code><button type="button" id="copy" aria-label="Copy install command">Copy</button></div>
+  <p class="burned" id="burned" hidden></p>
   <div class="row"><a class="btn" href="https://github.com/chronarklabs/chronark" target="_blank" rel="noopener">View on GitHub</a><a class="btn ghost" href="https://github.com/chronarklabs/chronark#readme">Read the docs</a></div>
 </div></section>
 </main>
@@ -349,6 +358,16 @@ if(cli){
     cli.innerHTML=out.join('\n')+'\n<span class="p">$</span> '+cur;await wait(4200);
   }})();
 }
+// the token: shown once the owner saves the CA in /studio
+fetch('/api/token').then(r=>r.ok?r.json():null).then(t=>{
+  if(!t||!t.live||!t.ca)return;
+  const ca=document.getElementById('ca');document.getElementById('caAddr').textContent=t.ca.slice(0,6)+'…'+t.ca.slice(-4);
+  document.getElementById('caAddr').title=t.ca;document.getElementById('caBuy').href=t.buy;ca.hidden=false;document.body.classList.add('has-ca');
+  const b=document.getElementById('caCopy');b.onclick=()=>navigator.clipboard?.writeText(t.ca).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1600)}).catch(()=>{});
+  const n=Number(t.deadBalance||t.totals?.burned||0);
+  if(n>0){const el=document.getElementById('burned');const last=(t.burns||[])[0];
+    el.innerHTML='<b>'+Math.round(n).toLocaleString('en-US')+' $'+t.symbol+'</b> burned for good'+(last?' · last burn <a href="'+t.explorer+'/tx/'+last.burnTx+'" target="_blank" rel="noopener">'+last.burnTx.slice(0,10)+'…</a>':'');el.hidden=false}
+}).catch(()=>{});
 const cp=document.getElementById('copy');
 if(cp)cp.addEventListener('click',()=>{navigator.clipboard?.writeText(document.getElementById('inst').textContent).then(()=>{cp.textContent='Copied';setTimeout(()=>cp.textContent='Copy',1600)}).catch(()=>{})});
 </script>

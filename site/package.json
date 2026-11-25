@@ -1,0 +1,9 @@
+{
+  "name": "chronark-site",
+  "private": true,
+  "type": "module",
+  "description": "chronarkcloud.com: the landing page, the public token view and the owner studio",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "ethers": "6.13.4" }
+}
