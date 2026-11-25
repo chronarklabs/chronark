@@ -37,13 +37,15 @@ if (cmd === "credit") {
   const [account, amount, ...note] = args;
   if (!/^0x[0-9a-f]{40}$/.test(account ?? "") || !amount) { console.error("usage: credit <account 0x…40 hex> <USDC> [note]"); process.exit(2); }
   const a = ledger.credit(account, toMicro(amount), note.join(" "));
-  console.log(`credited ${amount} USDC · ${a.id} balance ${fromMicro(a.balance, 6)} USDC`);
+  const cur = env.CHRONARK_CURRENCY || "USDC";
+  console.log(`credited ${amount} ${cur} · ${a.id} balance ${fromMicro(a.balance, 6)} ${cur}`);
   process.exit(0);
 }
 if (cmd === "account") {
   const a = ledger.account(args[0] ?? "");
   if (!a) { console.error("no such account"); process.exit(1); }
-  console.log(`${a.id}\nbalance ${fromMicro(a.balance, 6)} USDC\nheld    ${fromMicro(a.held, 6)} USDC`);
+  const cur = env.CHRONARK_CURRENCY || "USDC";
+  console.log(`${a.id}\nbalance ${fromMicro(a.balance, 6)} ${cur}\nheld    ${fromMicro(a.held, 6)} ${cur}`);
   process.exit(0);
 }
 if (cmd) { console.error(`unknown command "${cmd}"`); process.exit(2); }
