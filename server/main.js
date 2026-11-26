@@ -5,7 +5,7 @@
 //   node server/main.js account <account>        show an account
 // Config (env): CHRONARK_HOST 127.0.0.1, CHRONARK_PORT 8787, CHRONARK_DATA ./data, CHRONARK_RATE 0.0004,
 //   CHRONARK_RUNNER docker|process, CHRONARK_NETWORK none, CHRONARK_MEMORY 512m, CHRONARK_CPUS 1,
-//   CHRONARK_MAX_SESSIONS 20, CHRONARK_MAX_PER_ACCOUNT 3, CHRONARK_IDLE 300, CHRONARK_MAX_BUDGET 10, CHRONARK_CURRENCY USDC
+//   CHRONARK_PIDS 256, CHRONARK_DOCKER_RUNTIME (e.g. runsc for gVisor), CHRONARK_MAX_SESSIONS 20, CHRONARK_MAX_PER_ACCOUNT 3, CHRONARK_IDLE 300, CHRONARK_MAX_BUDGET 10, CHRONARK_CURRENCY USDC
 // On-chain deposits (all four to enable): CHRONARK_CHAIN_RPC, CHRONARK_CHAIN_ID, CHRONARK_VAULT, CHRONARK_VAULT_FROM (deploy block),
 //   plus CHRONARK_TOKEN (shown to depositors) and CHRONARK_CONFIRMATIONS (default 3)
 import { join, resolve } from "node:path";
@@ -57,7 +57,8 @@ if (kind === "process" && !["127.0.0.1", "::1", "localhost"].includes(host)) {
   process.exit(1);
 }
 const runner = kind === "process" ? processRunner()
-  : dockerRunner({ network: env.CHRONARK_NETWORK || "none", memory: env.CHRONARK_MEMORY || "512m", cpus: env.CHRONARK_CPUS || "1" });
+  : dockerRunner({ network: env.CHRONARK_NETWORK || "none", memory: env.CHRONARK_MEMORY || "512m", cpus: env.CHRONARK_CPUS || "1",
+    pids: Number(env.CHRONARK_PIDS || 256), runtime: env.CHRONARK_DOCKER_RUNTIME || "" });
 const key = nodeKey(data);
 const currency = env.CHRONARK_CURRENCY || "USDC";
 const deposit = env.CHRONARK_VAULT && env.CHRONARK_CHAIN_RPC ? {

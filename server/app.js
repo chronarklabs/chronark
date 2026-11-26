@@ -66,7 +66,7 @@ export function createApp({ ledger, runner, key, rate = "0.0004", maxSessions = 
 
   const routes = [
     ["GET", /^\/v1\/node$/, false, async () => ({ node: { id: key.id, pub: key.pub }, rate: fromMicro(rateM, 6), currency, deposit,
-      unit: "second", workers: Object.keys(runner.images), runner: runner.kind, minBudget: fromMicro(minBudgetM, 6), maxBudget: fromMicro(maxBudgetM, 6),
+      unit: "second", workers: Object.keys(runner.images), runner: runner.kind, sandbox: runner.runtime === "runsc" ? "gvisor" : (runner.runtime || runner.kind), minBudget: fromMicro(minBudgetM, 6), maxBudget: fromMicro(maxBudgetM, 6),
       idleSeconds, settlement: "ledger", access: allowed ? "private" : "public" })],
 
     ["GET", /^\/v1\/account$/, true, async ({ who }) => {

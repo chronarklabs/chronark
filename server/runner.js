@@ -10,15 +10,18 @@ const run = promisify(execFile);
 
 export const DEFAULT_IMAGES = { python: "python:3.12-slim", node: "node:22-slim", shell: "alpine:3.20" };
 
-export function dockerRunner({ images = DEFAULT_IMAGES, memory = "512m", cpus = "1", pids = 256, network = "none", docker = "docker" } = {}) {
+export function dockerRunner({ images = DEFAULT_IMAGES, memory = "512m", cpus = "1", pids = 256, network = "none", docker = "docker", runtime = "" } = {}) {
+  // runtime: an extra OCI runtime registered with dockerd, e.g. "runsc" (gVisor) for a user-space kernel between sessions and the host.
+  const rt = runtime ? ["--runtime", runtime] : [];
   return {
     kind: "docker",
+    runtime: runtime || "runc",
     images,
     async create(id, worker) {
       const image = images[worker];
       if (!image) throw Object.assign(new Error(`unknown worker "${worker}" (have: ${Object.keys(images).join(", ")})`), { status: 400 });
       const name = "chronark-" + id.slice(2, 18);
-      await run(docker, ["run", "-d", "--rm", "--name", name, "--label", "chronark.session=" + id,
+      await run(docker, ["run", "-d", "--rm", ...rt, "--name", name, "--label", "chronark.session=" + id,
         "--network", network, "--memory", memory, "--memory-swap", memory, "--cpus", cpus, "--pids-limit", String(pids),
         "--read-only", "--tmpfs", "/tmp:rw,nosuid,size=256m", "--tmpfs", "/work:rw,exec,nosuid,size=512m,uid=1000,gid=1000",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--user", "1000:1000", "-w", "/work",
