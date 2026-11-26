@@ -135,19 +135,20 @@ npm install -g chronark</code></pre>
       <p>Without <code>--cloud</code> the command runs on your own machine. Seconds are metered and the receipt is signed for real, but no money moves (<code>settlement: simulated</code>). Use it to see how billing works before you fund anything.</p>
 <pre><code>$ chronark run --budget 2.00 -- python scraper.py
 <span class="o">✓</span> session opened   0x7f3a…c21e
-⧗ metered   412s  ████████████  0.1648 USDC
+⧗ metered   412s  ████████████  0.1648 USDG
 <span class="o">✓</span> receipt signed   ~/.chronark/receipts/0x7f3a….json
-<span class="o">✓</span> settled 0.1648 USDC · refund 1.8352 USDC (simulated)</code></pre>
+<span class="o">✓</span> settled 0.1648 USDG · refund 1.8352 USDG (simulated)</code></pre>
     </section>
 
     <section id="cloud">
       <h2>Run in the cloud</h2>
       <p>Your account is the ed25519 key the CLI creates at <code>~/.chronark/node.key</code>. There is no sign-up and no API key: every request is signed with that key.</p>
-<pre><code><span class="c"># point the CLI at the Chronark node</span>
-export CHRONARK_CLOUD=https://api.chronarkcloud.com
+<pre><code><span class="c"># --cloud sends the command to the Chronark node</span>
+chronark account --cloud  <span class="c"># your account id and balance</span>
+chronark run --cloud --worker python --budget 0.05 -- python -c "print(6*7)"
 
-chronark account          <span class="c"># your account id and balance</span>
-chronark run --worker python --budget 0.05 -- python -c "print(6*7)"</code></pre>
+<span class="c"># or set it once for every command</span>
+export CHRONARK_CLOUD=https://api.chronarkcloud.com</code></pre>
       <ul>
         <li>Opening a session holds the budget from your balance. Stopping it pays for the seconds the sandbox was up and returns the rest.</li>
         <li>When the budget runs out the sandbox is destroyed.</li>

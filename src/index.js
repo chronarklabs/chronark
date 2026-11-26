@@ -16,8 +16,8 @@ export { verifyReceipt, canonical } from "./receipt.js";
 export { client as cloud, DEFAULT_CLOUD } from "./cloud.js";
 import { client as cloudClient } from "./cloud.js";
 
-export const DEFAULT_RATE = "0.0004"; // USDC per second
-const DEC = 6; // USDC has 6 decimals; all money maths is done in integer micro-units
+export const DEFAULT_RATE = "0.0004"; // USDG per second
+const DEC = 6; // USDG has 6 decimals; all money maths is done in integer micro-units
 
 export function toMicro(s) {
   const str = String(s).trim();
@@ -108,8 +108,8 @@ async function openLocal({ worker = "local", seconds, budget, rate = DEFAULT_RAT
       const paidM = BigInt(s) * rateM > budgetM ? budgetM : BigInt(s) * rateM;
       const body = {
         v: 1, mode: "local", session: id, worker, opened: new Date(opened).toISOString(), closed: new Date().toISOString(),
-        seconds: s, rate: fromMicro(rateM, 6) + " USDC/s", budget: fromMicro(budgetM, 6) + " USDC",
-        paid: fromMicro(paidM, 6) + " USDC", refund: fromMicro(budgetM - paidM, 6) + " USDC",
+        seconds: s, rate: fromMicro(rateM, 6) + " USDG/s", budget: fromMicro(budgetM, 6) + " USDG",
+        paid: fromMicro(paidM, 6) + " USDG", refund: fromMicro(budgetM - paidM, 6) + " USDG",
         status: exhausted ? "budget_exhausted" : "completed", settlement: "simulated",
         execs: execs.map(({ cmd, code, signal }) => ({ cmd, code, signal })),
         output: "sha256:" + outHash.digest("hex"),

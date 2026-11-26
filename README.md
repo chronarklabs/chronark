@@ -5,10 +5,10 @@ Per-second compute and settlement for agents. Wrap any command, pay only for the
 ```
 $ chronark run --budget 2.00 -- python scraper.py
 ✓ session opened   0x7f3a…c21e
-  rate 0.0004 USDC/s · budget 2.00 USDC · worker python · local node 0x3a93…306e
-⧗ metered   412s  ████████████  0.1648 USDC
+  rate 0.0004 USDG/s · budget 2.00 USDG · worker python · local node 0x3a93…306e
+⧗ metered   412s  ████████████  0.1648 USDG
 ✓ receipt signed   ~/.chronark/receipts/0x7f3a….json
-✓ settled 0.1648 USDC · refund 1.8352 USDC (simulated)
+✓ settled 0.1648 USDG · refund 1.8352 USDG (simulated)
 ```
 
 > **Two modes.** *Local* (default) runs the command on your own machine: seconds are metered and receipts signed for real, but no money moves (`"settlement": "simulated"`). *Cloud* (`--cloud <url>`) runs it in a locked-down sandbox on a Chronark node and pays from your balance on that node (`"settlement": "ledger"`). Balances are funded on chain through the ChronarkVault contract (or credited by the operator).
@@ -39,11 +39,11 @@ chronark run --worker python --budget 0.05 -- python -c "print(6*7)"
 
 ```
 ✓ session opened   0xe964…5e47  https://<your node>
-  rate 0.0004 USDC/s · budget 0.05 USDC · worker python (python:3.12-slim) · node 0x7efd…af48
+  rate 0.0004 USDG/s · budget 0.05 USDG · worker python (python:3.12-slim) · node 0x7efd…af48
 42
-⧗ metered     1s  ░░░░░░░░░░░░  0.0004 USDC
+⧗ metered     1s  ░░░░░░░░░░░░  0.0004 USDG
 ✓ receipt signed   ~/.chronark/receipts/0xe964….json
-✓ settled 0.0004 USDC · refund 0.0496 USDC (ledger)
+✓ settled 0.0004 USDG · refund 0.0496 USDG (ledger)
 ```
 
 - Opening a session holds the budget from your balance. Stopping it pays the seconds the sandbox was up (per started second) and returns the rest.
@@ -99,14 +99,14 @@ To try it locally: `CHRONARK_RUNNER=docker node server/main.js` with Docker runn
 
 | command | what it does |
 | --- | --- |
-| `chronark run [--budget 2.00] [--worker name] [--cloud url] -- <cmd> [args]` | Runs the command, meters it by the second, stops it if the budget runs out, signs a receipt. Exits with the command's exit code (124 if the budget ran out). |
+| `chronark run [--budget 2.00] [--worker name] [--cloud [url]] -- <cmd> [args]` | Runs the command, meters it by the second, stops it if the budget runs out, signs a receipt. Exits with the command's exit code (124 if the budget ran out). |
 | `chronark quote <seconds> [--rate]` | What that many seconds cost. |
 | `chronark receipts [--json]` | Every receipt on this machine, newest first. |
 | `chronark verify <file \| session id>` | Checks a receipt's signature. Any edit to any field breaks it. |
-| `chronark account [--cloud url]` | Your account id, and with a node, its balance and recent sessions. |
+| `chronark account [--cloud [url]]` | Your account id, and with a node, its balance and recent sessions. |
 | `chronark whoami` | Your key's id and public key. |
 
-Billing is per started second, in USDC with 6 decimals, computed in integers so it never rounds wrong. The default rate is 0.0004 USDC/s and the default budget 2.00 USDC.
+Billing is per started second, in USDG with 6 decimals, computed in integers so it never rounds wrong. The default rate is 0.0004 USDG/s and the default budget 2.00 USDG.
 
 ## The receipt
 
@@ -117,10 +117,10 @@ Billing is per started second, in USDC with 6 decimals, computed in integers so 
   "session": "0x7f3a…c21e",
   "worker": "python",
   "seconds": 412,
-  "rate": "0.000400 USDC/s",
-  "budget": "2.000000 USDC",
-  "paid": "0.164800 USDC",
-  "refund": "1.835200 USDC",
+  "rate": "0.000400 USDG/s",
+  "budget": "2.000000 USDG",
+  "paid": "0.164800 USDG",
+  "refund": "1.835200 USDG",
   "status": "completed",
   "settlement": "simulated",
   "execs": [{ "cmd": "python scraper.py", "code": 0, "signal": null }],
@@ -148,7 +148,7 @@ const receipt = await session.stop();
 chronark.verifyReceipt(receipt); // { ok: true }
 ```
 
-`open` takes `budget` (USDC) or `seconds` (the same cap in time), plus `rate` and an `onTick` callback. `exec` takes a shell string or an `[cmd, ...args]` array and resolves with `{ code, signal, stdout, stderr }`.
+`open` takes `budget` (USDG) or `seconds` (the same cap in time), plus `rate` and an `onTick` callback. `exec` takes a shell string or an `[cmd, ...args]` array and resolves with `{ code, signal, stdout, stderr }`.
 
 ## Develop
 

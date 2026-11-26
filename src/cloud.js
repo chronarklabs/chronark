@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { nodeKey, home, verifyReceipt } from "./receipt.js";
 import { signRequest } from "./auth.js";
 
-// There is deliberately no built-in default: you name the node you trust with your commands.
-export const DEFAULT_CLOUD = null;
+// Used only when you pass a bare --cloud: the public node at chronarkcloud.com. Pass --cloud <url> for any other node.
+export const DEFAULT_CLOUD = "https://api.chronarkcloud.com";
 
 export function client(url = process.env.CHRONARK_CLOUD, { dir = home() } = {}) {
   if (!url) throw new Error("no cloud node given: pass --cloud <url> or set CHRONARK_CLOUD");

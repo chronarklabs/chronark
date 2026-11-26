@@ -249,8 +249,8 @@ footer a:hover{color:#fff}
     "session": "0x8c1f…a2e4",
     "worker": "python",
     "seconds": 412,
-    "paid": "0.164800 USDC",
-    "refund": "1.835200 USDC",
+    "paid": "0.164800 USDG",
+    "refund": "1.835200 USDG",
     "output": "sha256:91c7…",
     "node": "0x3a93…306e",
     "sig": "5d0a…"</pre></div></div>
@@ -340,12 +340,12 @@ if(cli){
   const L=[
     ['<span class="p">$</span> <span class="w">chronark run --budget 2.00 -- python scraper.py</span>',1],
     ['<span class="ok">✓</span> session opened   <span class="dim">0x7f3a…c21e</span>',0],
-    ['  rate 0.0004 USDC/s · budget 2.00 USDC · worker python',0],
+    ['  rate 0.0004 USDG/s · budget 2.00 USDG · worker python',0],
     ['METER',0],
     ['<span class="ok">✓</span> receipt signed   <span class="dim">~/.chronark/receipts/0x7f3a….json</span>',0],
-    ['<span class="ok">✓</span> settled <span class="warm">0.1648 USDC</span> · refund 1.8352 USDC',0],
+    ['<span class="ok">✓</span> settled <span class="warm">0.1648 USDG</span> · refund 1.8352 USDG',0],
   ];
-  const meter=n=>{const f=Math.round(n/412*12);return '<span class="warm">⧗</span> '+(n>=412?'metered ':'metering')+'  '+String(n).padStart(3,' ')+'s  <span class="ok">'+'█'.repeat(f)+'</span><span class="dim">'+'░'.repeat(12-f)+'</span>  '+(n*0.0004).toFixed(4)+' USDC'};
+  const meter=n=>{const f=Math.round(n/412*12);return '<span class="warm">⧗</span> '+(n>=412?'metered ':'metering')+'  '+String(n).padStart(3,' ')+'s  <span class="ok">'+'█'.repeat(f)+'</span><span class="dim">'+'░'.repeat(12-f)+'</span>  '+(n*0.0004).toFixed(4)+' USDG'};
   const cur='<span class="cur"></span>';
   const done=L.map(l=>l[0]==='METER'?meter(412):l[0]);
   const wait=ms=>new Promise(r=>setTimeout(r,ms));

@@ -35,7 +35,7 @@ test("a tampered receipt fails verification", async () => {
   const s = await open({ budget: "1", dir });
   await s.exec([process.execPath, "-e", ""]);
   const r = JSON.parse(readFileSync((await s.stop()).file, "utf8"));
-  r.paid = "0.000000 USDC";
+  r.paid = "0.000000 USDG";
   assert.equal(verifyReceipt(r).ok, false);
 });
 
@@ -47,7 +47,7 @@ test("the budget stops a long command", async () => {
   const r = await s.stop();
   assert.equal(r.status, "budget_exhausted");
   assert.equal(r.seconds, 2);
-  assert.equal(r.refund, "0.000000 USDC");
+  assert.equal(r.refund, "0.000000 USDG");
   assert.ok(Date.now() - t < 6000);
 });
 
@@ -63,7 +63,7 @@ test("cli run, receipts and verify", () => {
   assert.ok(r.session.startsWith(id));
   assert.equal(cli(["verify", r.file], home).status, 0);
   const bad = join(home, "bad.json");
-  writeFileSync(bad, JSON.stringify({ ...r, paid: "0.000000 USDC" }));
+  writeFileSync(bad, JSON.stringify({ ...r, paid: "0.000000 USDG" }));
   const v = cli(["verify", bad], home);
   assert.equal(v.status, 1);
   assert.match(v.stdout, /invalid/);

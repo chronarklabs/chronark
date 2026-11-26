@@ -2,7 +2,7 @@
 // chronark: wrap any command, meter it by the second, get a signed receipt.
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { open, quote, receipts, verifyReceipt, whoami, cloud, DEFAULT_RATE } from "../src/index.js";
+import { open, quote, receipts, verifyReceipt, whoami, cloud, DEFAULT_RATE, DEFAULT_CLOUD } from "../src/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const tty = process.stderr.isTTY && !process.env.NO_COLOR;
@@ -15,8 +15,8 @@ const HELP = `${bold("chronark")} ${pkg.version} · per-second compute with sign
 
 ${bold("Usage")}
   chronark run [--budget 2.00] [--rate ${DEFAULT_RATE}] [--worker name] -- <command> [args...]
-  chronark run --cloud <url> [--budget 0.24] [--worker shell|python|node] -- <command> [args...]
-  chronark account [--cloud <url>]
+  chronark run --cloud [url] [--budget 0.24] [--worker shell|python|node] -- <command> [args...]
+  chronark account [--cloud [url]]
   chronark quote <seconds> [--rate ${DEFAULT_RATE}]
   chronark receipts [--json]
   chronark verify <receipt.json | session id>
@@ -27,10 +27,10 @@ ${bold("Examples")}
   chronark run --budget 0.01 -- sleep 60        ${dim("# stopped at 25 s when the budget runs out")}
   chronark verify ~/.chronark/receipts/0x….json
 
-Money is in USDC, billed per started second.
+Money is in USDG, billed per started second.
 Local mode (default): your machine is the worker, receipts are signed by a
 local key and no funds move (settlement: simulated).
-Cloud mode (--cloud <url> or CHRONARK_CLOUD): the command runs in a sandbox
+Cloud mode (--cloud, --cloud <url> or CHRONARK_CLOUD; bare --cloud uses\n${DEFAULT_CLOUD}): the command runs in a sandbox
 on a Chronark node, paid from your balance there (settlement: ledger). Your
 account is your local key; \`chronark account\` prints its id for funding.
 State lives in ~/.chronark (CHRONARK_HOME).`;
@@ -43,6 +43,7 @@ function flags(argv) {
     if (a.startsWith("--")) {
       const [k, v] = a.slice(2).split("=");
       if (["json", "help", "version", "local"].includes(k)) f[k] = true;
+      else if (k === "cloud" && v === undefined && (i + 1 >= argv.length || argv[i + 1].startsWith("--"))) f[k] = DEFAULT_CLOUD; // bare --cloud
       else f[k] = v ?? argv[++i];
     } else rest.push(a);
   }
@@ -61,11 +62,11 @@ async function run(f, cmd) {
 
   const s = await open({ worker, budget: f.budget ?? "2.00", rate: f.rate ?? DEFAULT_RATE, onTick: (t) => {
     last = t;
-    line = `${warm("⧗")} metering  ${String(t.seconds).padStart(4)}s  ${bar(t.seconds, t.max)}  ${t.cost} USDC`;
+    line = `${warm("⧗")} metering  ${String(t.seconds).padStart(4)}s  ${bar(t.seconds, t.max)}  ${t.cost} USDG`;
     draw();
   } });
   err(`${ok("✓")} session opened   ${dim(short(s.id))}`);
-  err(`  rate ${s.rate.replace(/0+$/, "")} USDC/s · budget ${s.budget.replace(/0{1,4}$/, "")} USDC · worker ${worker} · ${dim("local node " + short(s.node))}`);
+  err(`  rate ${s.rate.replace(/0+$/, "")} USDG/s · budget ${s.budget.replace(/0{1,4}$/, "")} USDG · worker ${worker} · ${dim("local node " + short(s.node))}`);
 
   const onSig = () => {}; // let the child receive Ctrl-C; we still sign what was used
   process.on("SIGINT", onSig);
@@ -79,7 +80,7 @@ async function run(f, cmd) {
   process.off("SIGINT", onSig);
   const r = await s.stop();
   clear();
-  err(`${warm("⧗")} metered  ${String(r.seconds).padStart(4)}s  ${bar(r.seconds, s.maxSeconds)}  ${s.cost(r.seconds)} USDC`);
+  err(`${warm("⧗")} metered  ${String(r.seconds).padStart(4)}s  ${bar(r.seconds, s.maxSeconds)}  ${s.cost(r.seconds)} USDG`);
   if (r.status === "budget_exhausted") err(`${red("■")} budget exhausted, command stopped after ${r.seconds}s`);
   err(`${ok("✓")} receipt signed   ${dim(r.file.replace(process.env.HOME || "~", "~"))}`);
   err(`${ok("✓")} settled ${warm(r.paid.replace(/(\.\d{4})\d+/, "$1"))} · refund ${r.refund.replace(/(\.\d{4})\d+/, "$1")} ${dim("(simulated)")}`);
@@ -103,7 +104,7 @@ async function runCloud(f, cmd, url) {
     return e.status === 402 ? 3 : 1;
   }
   err(`${ok("✓")} session opened   ${dim(short(s.id))}  ${dim(c.url)}`);
-  const cur = s.currency || "USDC";
+  const cur = s.currency || "USDG";
   err(`  rate ${s.rate.replace(/0+$/, "")} ${cur}/s · budget ${s.budget.replace(/0{1,4}$/, "")} ${cur} · worker ${worker} (${s.image}) · ${dim("node " + short(s.node))}`);
   let res = { code: 1 };
   const onSig = () => { s.stop().catch(() => {}); };
@@ -141,7 +142,7 @@ async function main() {
   if (cmd === "quote") {
     const n = Number(rest[0]);
     if (!Number.isInteger(n) || n < 1) { err(red("✗"), "give a whole number of seconds, e.g. chronark quote 600"); return 2; }
-    console.log(`${n}s at ${f.rate ?? DEFAULT_RATE} USDC/s = ${quote(n, f.rate ?? DEFAULT_RATE)} USDC`);
+    console.log(`${n}s at ${f.rate ?? DEFAULT_RATE} USDG/s = ${quote(n, f.rate ?? DEFAULT_RATE)} USDG`);
     return 0;
   }
 
@@ -167,11 +168,11 @@ async function main() {
   if (cmd === "account") {
     const url = f.cloud ?? process.env.CHRONARK_CLOUD;
     const w = whoami();
-    if (!url) { console.log(`account ${w.id}\n${dim("add --cloud <url> to see your balance on a node")}`); return 0; }
+    if (!url) { console.log(`account ${w.id}\n${dim("add --cloud to see your balance on the Chronark node")}`); return 0; }
     const c = cloud(url);
     const [a, n] = await Promise.all([c.balance(), c.node()]);
     if (f.json) { console.log(JSON.stringify({ ...a, node: n }, null, 2)); return 0; }
-    const cur = a.currency || "USDC";
+    const cur = a.currency || "USDG";
     console.log(`account ${a.account}\nnode    ${n.node.id} · ${c.url}\nbalance ${a.balance} ${cur}${a.held !== "0.000000" ? `  (${a.held} held by open sessions)` : ""}\nrate    ${n.rate} ${cur}/s · workers ${n.workers.join(", ")}`);
     if (n.deposit) console.log(`fund    send ${cur} to vault ${n.deposit.vault} on chain ${n.deposit.chainId}: ${n.deposit.method} with account ${a.account}` + (n.deposit.fundUrl ? `\n        or open ${n.deposit.fundUrl}?account=${a.account}` : ""));
     for (const d of a.deposits || []) console.log(dim(`  + ${d.amount} ${cur}  ${d.at.slice(0, 19).replace("T", " ")}  tx ${short(d.tx)}`));
